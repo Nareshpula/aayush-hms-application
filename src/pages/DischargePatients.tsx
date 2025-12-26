@@ -93,6 +93,8 @@ const DischargePatients: React.FC = () => {
   const [successMessage, setSuccessMessage] = useState('');
 
   // Calculate department-wise discharged amounts
+  // Discharge Collected Amount = Paid Amount - IP Joining Amount
+  // This ensures IP Joining Amount (advance) is not double-counted
   const departmentAmounts = useMemo(() => {
     const calculateAmount = (department: 'Pediatrics' | 'Dermatology') => {
       return dischargeRecords
@@ -102,7 +104,11 @@ const DischargePatients: React.FC = () => {
           (!dateFrom || record.discharge_date >= dateFrom) &&
           (!dateTo || record.discharge_date <= dateTo)
         )
-        .reduce((sum, record) => sum + (record.paid_amount || 0), 0);
+        .reduce((sum, record) => {
+          // Calculate net discharge collected amount (excluding IP advance)
+          const dischargeCollectedAmount = (record.paid_amount || 0) - (record.ip_joining_amount || 0);
+          return sum + dischargeCollectedAmount;
+        }, 0);
     };
 
     return {
@@ -300,12 +306,15 @@ const DischargePatients: React.FC = () => {
       patient: record.patient,
       doctor: record.doctor
     } as Registration);
+
+    const dischargeCollectedAmount = (record.paid_amount || 0) - (record.ip_joining_amount || 0);
+
     setFormData({
       admission_date: record.admission_date,
       discharge_date: record.discharge_date,
       ip_joining_amount: record.ip_joining_amount?.toFixed(2) || '0.00',
       total_amount: record.total_amount.toFixed(2),
-      paid_amount: record.paid_amount.toFixed(2),
+      paid_amount: dischargeCollectedAmount.toFixed(2),
       outstanding_amount: record.outstanding_amount.toFixed(2),
       refundable_amount: record.refundable_amount.toFixed(2),
       payment_method: record.payment_method || 'Cash',
@@ -323,16 +332,23 @@ const DischargePatients: React.FC = () => {
     }));
   };
 
-  const calculateAmounts = (total: string, paid: string) => {
+  const calculateAmounts = (total: string, paid: string, autoFillPaid: boolean = false) => {
     const totalNum = parseFloat(total) || 0;
-    const paidNum = parseFloat(paid) || 0;
-    const outstanding = Math.max(0, totalNum - paidNum);
-    const refundable = Math.max(0, paidNum - totalNum);
+    const advance = parseFloat(formData.ip_joining_amount) || 0;
+    const amountReceivable = totalNum - advance;
+
+    let paidNum = parseFloat(paid) || 0;
+    if (autoFillPaid && (!paid || parseFloat(paid) === 0)) {
+      paidNum = Math.max(0, amountReceivable);
+    }
+
+    const outstanding = Math.max(0, amountReceivable - paidNum);
+    const refundable = Math.max(0, paidNum - amountReceivable);
 
     setFormData(prev => ({
       ...prev,
       total_amount: total,
-      paid_amount: paid,
+      paid_amount: autoFillPaid ? paidNum.toFixed(2) : paid,
       outstanding_amount: outstanding.toFixed(2),
       refundable_amount: refundable.toFixed(2)
     }));
@@ -355,14 +371,18 @@ const DischargePatients: React.FC = () => {
     }
 
     try {
+      const advance = parseFloat(formData.ip_joining_amount) || 0;
+      const dischargeCollected = parseFloat(formData.paid_amount);
+      const totalPaidAmount = advance + dischargeCollected;
+
       if (editingRecord) {
         // Update existing record
         const updateData = {
           admission_date: formData.admission_date,
           discharge_date: formData.discharge_date,
-          ip_joining_amount: parseFloat(formData.ip_joining_amount) || 0,
+          ip_joining_amount: advance,
           total_amount: parseFloat(formData.total_amount),
-          paid_amount: parseFloat(formData.paid_amount),
+          paid_amount: totalPaidAmount,
           outstanding_amount: parseFloat(formData.outstanding_amount),
           refundable_amount: parseFloat(formData.refundable_amount),
           payment_method: formData.payment_method,
@@ -401,9 +421,9 @@ const DischargePatients: React.FC = () => {
       .update({
         admission_date: formData.admission_date,
         discharge_date: formData.discharge_date,
-        ip_joining_amount: parseFloat(formData.ip_joining_amount) || 0,
+        ip_joining_amount: advance,
         total_amount: parseFloat(formData.total_amount),
-        paid_amount: parseFloat(formData.paid_amount),
+        paid_amount: totalPaidAmount,
         outstanding_amount: parseFloat(formData.outstanding_amount),
         refundable_amount: parseFloat(formData.refundable_amount),
         payment_method: formData.payment_method,
@@ -433,9 +453,9 @@ const DischargePatients: React.FC = () => {
         doctor_id: selectedRegistration.doctor_id,
         admission_date: formData.admission_date,
         discharge_date: formData.discharge_date,
-        ip_joining_amount: parseFloat(formData.ip_joining_amount) || 0,
+        ip_joining_amount: advance,
         total_amount: parseFloat(formData.total_amount),
-        paid_amount: parseFloat(formData.paid_amount),
+        paid_amount: totalPaidAmount,
         outstanding_amount: parseFloat(formData.outstanding_amount),
         refundable_amount: parseFloat(formData.refundable_amount),
         payment_method: formData.payment_method,
@@ -707,12 +727,13 @@ const DischargePatients: React.FC = () => {
                       </td>
                       <td className="px-4 py-4 text-sm text-gray-900">
                         <div>Total: ₹{record.total_amount.toFixed(2)}</div>
-                        <div className="text-green-600">Paid: ₹{record.paid_amount.toFixed(2)}</div>
+                        <div className="text-blue-600">Advance: ₹{(record.ip_joining_amount || 0).toFixed(2)}</div>
+                        <div className="text-green-600">Paid: ₹{(record.paid_amount - (record.ip_joining_amount || 0)).toFixed(2)}</div>
                         {record.outstanding_amount > 0 && (
                           <div className="text-red-600">Due: ₹{record.outstanding_amount.toFixed(2)}</div>
                         )}
                         {record.refundable_amount > 0 && (
-                          <div className="text-blue-600">Refund: ₹{record.refundable_amount.toFixed(2)}</div>
+                          <div className="text-orange-600">Refund: ₹{record.refundable_amount.toFixed(2)}</div>
                         )}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm">
@@ -784,21 +805,29 @@ const DischargePatients: React.FC = () => {
                   <h3 className="text-sm font-semibold text-gray-700 mb-4">Billing Summary</h3>
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
-                      <span>Total Bill Amount:</span>
+                      <span>Total:</span>
                       <span className="font-semibold">₹{previewBill.total_amount.toFixed(2)}</span>
                     </div>
+                    <div className="flex justify-between text-blue-600">
+                      <span>Advance:</span>
+                      <span className="font-semibold">₹{(previewBill.ip_joining_amount || 0).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between border-t border-gray-200 pt-2">
+                      <span>Amount Receivable:</span>
+                      <span className="font-semibold">₹{(previewBill.total_amount - (previewBill.ip_joining_amount || 0)).toFixed(2)}</span>
+                    </div>
                     <div className="flex justify-between text-green-600">
-                      <span>Amount Paid:</span>
-                      <span className="font-semibold">₹{previewBill.paid_amount.toFixed(2)}</span>
+                      <span>Amount Received:</span>
+                      <span className="font-semibold">₹{(previewBill.total_amount - (previewBill.ip_joining_amount || 0)).toFixed(2)}</span>
                     </div>
                     {previewBill.outstanding_amount > 0 && (
-                      <div className="flex justify-between text-red-600">
+                      <div className="flex justify-between text-red-600 pt-2 border-t border-gray-200">
                         <span>Outstanding Amount:</span>
                         <span className="font-semibold">₹{previewBill.outstanding_amount.toFixed(2)}</span>
                       </div>
                     )}
                     {previewBill.refundable_amount > 0 && (
-                      <div className="flex justify-between text-blue-600">
+                      <div className="flex justify-between text-blue-600 pt-2 border-t border-gray-200">
                         <span>Refundable Amount:</span>
                         <span className="font-semibold">₹{previewBill.refundable_amount.toFixed(2)}</span>
                       </div>
@@ -970,7 +999,7 @@ const DischargePatients: React.FC = () => {
                         type="number"
                         step="0.01"
                         value={formData.total_amount}
-                        onChange={(e) => calculateAmounts(e.target.value, formData.paid_amount)}
+                        onChange={(e) => calculateAmounts(e.target.value, formData.paid_amount, true)}
                         className="form-input w-full"
                         placeholder="0.00"
                         required
@@ -979,17 +1008,18 @@ const DischargePatients: React.FC = () => {
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Paid Amount (₹) *
+                        Paid Amount (at Discharge) (₹) *
                       </label>
                       <input
                         type="number"
                         step="0.01"
                         value={formData.paid_amount}
-                        onChange={(e) => calculateAmounts(formData.total_amount, e.target.value)}
+                        onChange={(e) => calculateAmounts(formData.total_amount, e.target.value, false)}
                         className="form-input w-full"
                         placeholder="0.00"
                         required
                       />
+                      <p className="text-xs text-gray-500 mt-1">Amount collected at discharge (excluding advance)</p>
                     </div>
 
                     <div>

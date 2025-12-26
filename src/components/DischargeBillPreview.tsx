@@ -29,6 +29,18 @@ const formatAdmissionDateTime = (date?: string, time?: string) => {
   });
 };
 
+// ✅ Helper: extract time from timestamp (for discharge time from updated_at)
+const extractTimeFromTimestamp = (timestamp?: string) => {
+  if (!timestamp) return undefined;
+
+  const date = new Date(timestamp);
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const seconds = String(date.getSeconds()).padStart(2, '0');
+
+  return `${hours}:${minutes}:${seconds}`;
+};
+
 function numberToWords(num: number): string {
   const ones = ['', 'ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE'];
   const teens = ['TEN', 'ELEVEN', 'TWELVE', 'THIRTEEN', 'FOURTEEN', 'FIFTEEN', 'SIXTEEN', 'SEVENTEEN', 'EIGHTEEN', 'NINETEEN'];
@@ -232,9 +244,19 @@ export default function DischargeBillPreview() {
         </style>
 
         <div className="px-8 py-6 print:px-6 print:py-4">
-          <div className="text-center mb-3">
-            <h1 className="text-2xl font-bold mb-1 tracking-wide" style={{ letterSpacing: '0.05em' }}>AAYUSH HOSPITAL</h1>
-            <p className="text-xs">#3-153-9, Opp. Joyalukkas, C.T.M. Road, Madanapalle Town, Madanapalle Dist. | Cell: 8179880809, 8822699996</p>
+          <div className="flex items-start mb-3">
+            <div className="flex-shrink-0 mr-4">
+              <img
+                src="https://voaxktqgbljtsattacbn.supabase.co/storage/v1/object/sign/aayush-hospital/Header-Bar-Images/Skin-pages-image/Aayush-logo.png?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1cmwiOiJhYXl1c2gtaG9zcGl0YWwvSGVhZGVyLUJhci1JbWFnZXMvU2tpbi1wYWdlcy1pbWFnZS9BYXl1c2gtbG9nby5wbmciLCJpYXQiOjE3NDM2OTk3MzAsImV4cCI6MTkwMTM3OTczMH0.pg25T9SRSiXE0jn46_vxVzTK_vlJGURYwbeRpbjnIF0"
+                alt="Aayush Hospital Logo"
+                className="h-16 w-auto object-contain"
+              />
+            </div>
+            <div className="flex-1 text-center">
+              <h1 className="text-2xl font-bold mb-1 tracking-wide" style={{ letterSpacing: '0.05em' }}>AAYUSH HOSPITAL</h1>
+              <p className="text-xs">#3-153-9, Opp. Joyalukkas, C.T.M. Road, Madanapalle Town, Madanapalle Dist. | Cell: 8179880809, 8822699996</p>
+            </div>
+            <div className="flex-shrink-0 w-16"></div>
           </div>
 
           <div className="flex justify-between items-start mb-3 pb-3 border-b-2 border-black text-xs">
@@ -261,7 +283,7 @@ export default function DischargeBillPreview() {
             <div className="space-y-0.5">
               <p><span className="font-semibold inline-block w-16">Bill No</span>: {billData.existingDischargeBill?.bill_no || savedBillNo || '[To be generated]'}</p>
               <p><span className="font-semibold inline-block w-16">Date</span>: {new Date().toLocaleString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
-              <p><span className="font-semibold inline-block w-16">D.O.D</span>: {billData.admission.ip_admissions?.[0]?.discharge_date ? new Date(billData.admission.ip_admissions[0].discharge_date).toLocaleString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+              <p><span className="font-semibold inline-block w-16">D.O.D</span>: {formatAdmissionDateTime(billData.admission.ip_admissions?.[0]?.discharge_date, extractTimeFromTimestamp(billData.admission.ip_admissions?.[0]?.updated_at))}</p>
             </div>
           </div>
 
@@ -340,7 +362,7 @@ export default function DischargeBillPreview() {
                 </div>
                 <div className="flex justify-between border-b border-black pb-1">
                   <span className="font-semibold">Amount Received:</span>
-                  <span className="font-semibold">{(billData.existingDischargeBill?.paid_amount || billData.paidAmount).toFixed(2)}</span>
+                  <span className="font-semibold">{billData.existingDischargeBill ? ((billData.existingDischargeBill.paid_amount || 0) - (billData.existingDischargeBill.ip_joining_amount || 0)).toFixed(2) : (billData.amountReceived || 0).toFixed(2)}</span>
                 </div>
               </div>
             </div>

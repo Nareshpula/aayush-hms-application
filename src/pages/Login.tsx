@@ -127,10 +127,6 @@ export default function Login() {
                 {loading ? "Signing In..." : "Sign In"}
               </button>
             </form>
-
-            <p className="text-[11px] text-center mt-5 text-gray-700">
-              Default login: <b>admin / admin123</b>
-            </p>
           </div>
         </div>
       </div>

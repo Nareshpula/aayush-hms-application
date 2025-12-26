@@ -14,16 +14,6 @@ force = true
 
 
 # --------------------------------------------------
-# Redirect HMS domain (explicit rule)
-# --------------------------------------------------
-[[redirects]]
-from = "hms.aayushhospitalmpl.com/*"
-to = "https://hms.aayushhospitalmpl.com/:splat"
-status = 301
-force = true
-
-
-# --------------------------------------------------
 # SPA fallback (React / Vite routing)
 # --------------------------------------------------
 [[redirects]]

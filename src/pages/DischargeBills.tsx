@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, FileText, Plus, Minus } from 'lucide-react';
+import { Search, FileText, Plus, Minus, Calendar } from 'lucide-react';
 import { DatabaseService, type Patient, type DischargeBillItem } from '../lib/supabase';
 import { useDebounce } from '../lib/hooks';
+import { getCurrentISTDate } from '../lib/dateUtils';
 
 interface BillLineItem extends Omit<DischargeBillItem, 'id' | 'discharge_bill_id'> {
   tempId: string;
@@ -21,17 +22,14 @@ export default function DischargeBills() {
   const [createdBy, setCreatedBy] = useState('Admin');
   const [existingDischargeBill, setExistingDischargeBill] = useState<any>(null);
 
+  const [existingBills, setExistingBills] = useState<any[]>([]);
+  const [startDate, setStartDate] = useState(getCurrentISTDate());
+  const [endDate, setEndDate] = useState(getCurrentISTDate());
+  const [billsLoading, setBillsLoading] = useState(false);
+
   const debouncedSearchTerm = useDebounce(searchTerm, 400);
 
-  useEffect(() => {
-    if (debouncedSearchTerm.trim().length >= 2) {
-      handleSearch();
-    } else if (debouncedSearchTerm.trim().length === 0) {
-      setPatients([]);
-    }
-  }, [debouncedSearchTerm]);
-
-  const handleSearch = async () => {
+  const handleSearch = useCallback(async () => {
     if (!searchTerm.trim()) return;
     setLoading(true);
     try {
@@ -43,7 +41,37 @@ export default function DischargeBills() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [searchTerm]);
+
+  const fetchExistingBills = useCallback(async () => {
+    setBillsLoading(true);
+    try {
+      const allBills = await DatabaseService.getDischargeBills();
+      const filteredBills = allBills.filter((bill: any) => {
+        const matchesSection = bill.section === section;
+        const billDate = bill.discharge_date;
+        const matchesDateRange = (!startDate || billDate >= startDate) && (!endDate || billDate <= endDate);
+        return matchesSection && matchesDateRange;
+      });
+      setExistingBills(filteredBills);
+    } catch (error) {
+      console.error('Error fetching discharge bills:', error);
+    } finally {
+      setBillsLoading(false);
+    }
+  }, [section, startDate, endDate]);
+
+  useEffect(() => {
+    if (debouncedSearchTerm.trim().length >= 2) {
+      handleSearch();
+    } else if (debouncedSearchTerm.trim().length === 0) {
+      setPatients([]);
+    }
+  }, [debouncedSearchTerm, handleSearch]);
+
+  useEffect(() => {
+    fetchExistingBills();
+  }, [fetchExistingBills]);
 
   const handleSelectPatient = async (patient: Patient) => {
     setLoading(true);
@@ -188,30 +216,34 @@ export default function DischargeBills() {
       categoryTotals[item.category] = (categoryTotals[item.category] || 0) + item.amount;
     });
 
-    if (existingDischargeBill) {
-      const ipJoiningAmount = existingDischargeBill.ip_joining_amount || 0;
-      const totalAmount = existingDischargeBill.total_amount || 0;
-      const paidAmount = existingDischargeBill.paid_amount || 0;
-      const amountReceivable = totalAmount - ipJoiningAmount;
+    const totalAmount = existingDischargeBill
+      ? existingDischargeBill.total_amount
+      : lineItems.reduce((sum, item) => sum + item.amount, 0);
 
-      return {
-        categoryTotals,
-        totalAmount,
-        paidAmount,
-        outstanding: amountReceivable,
-        refundable: 0,
-        ipJoiningAmount,
-        amountReceivable,
-        existingBillNo: existingDischargeBill.bill_no
-      };
-    }
+    const ipJoiningAmount = existingDischargeBill
+      ? (existingDischargeBill.ip_joining_amount || 0)
+      : (admission?.payment_amount || 0);
 
-    const totalAmount = lineItems.reduce((sum, item) => sum + item.amount, 0);
-    const paidAmount = admission?.payment_amount || 0;
-    const outstanding = totalAmount - paidAmount;
-    const refundable = paidAmount > totalAmount ? paidAmount - totalAmount : 0;
+    const amountReceivable = totalAmount - ipJoiningAmount;
+    const paidAmount = existingDischargeBill
+      ? existingDischargeBill.paid_amount
+      : ipJoiningAmount;
 
-    return { categoryTotals, totalAmount, paidAmount, outstanding, refundable };
+    const amountReceived = paidAmount - ipJoiningAmount;
+    const outstanding = amountReceivable - amountReceived;
+    const refundable = amountReceived > amountReceivable ? amountReceived - amountReceivable : 0;
+
+    return {
+      categoryTotals,
+      totalAmount,
+      ipJoiningAmount,
+      amountReceivable,
+      paidAmount,
+      amountReceived,
+      outstanding: outstanding > 0 ? outstanding : 0,
+      refundable,
+      existingBillNo: existingDischargeBill?.bill_no
+    };
   };
 
   const handlePreview = () => {
@@ -255,6 +287,92 @@ const formatAdmissionDateTime = (date?: string, time?: string) => {
       </div>
 
       <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Existing Discharge Bills</h2>
+
+        <div className="mb-4">
+          <div className="flex gap-4 items-end">
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-gray-700 mb-2">End Date</label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <button
+              onClick={fetchExistingBills}
+              disabled={billsLoading}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-2 disabled:opacity-50"
+            >
+              <Search className="w-5 h-5" />
+              {billsLoading ? 'Loading...' : 'Search'}
+            </button>
+          </div>
+        </div>
+
+        {billsLoading ? (
+          <div className="text-center py-8">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <p className="mt-2 text-gray-600">Loading bills...</p>
+          </div>
+        ) : existingBills.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse border border-gray-300">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="border border-gray-300 px-4 py-2 text-left text-sm font-medium text-gray-700">Bill No</th>
+                  <th className="border border-gray-300 px-4 py-2 text-left text-sm font-medium text-gray-700">Patient</th>
+                  <th className="border border-gray-300 px-4 py-2 text-left text-sm font-medium text-gray-700">Patient ID</th>
+                  <th className="border border-gray-300 px-4 py-2 text-left text-sm font-medium text-gray-700">Doctor</th>
+                  <th className="border border-gray-300 px-4 py-2 text-left text-sm font-medium text-gray-700">Discharge Date</th>
+                  <th className="border border-gray-300 px-4 py-2 text-right text-sm font-medium text-gray-700">Total Amount</th>
+                  <th className="border border-gray-300 px-4 py-2 text-center text-sm font-medium text-gray-700">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {existingBills.map((bill: any) => (
+                  <tr key={bill.id} className="hover:bg-gray-50">
+                    <td className="border border-gray-300 px-4 py-2 text-sm">{bill.bill_no}</td>
+                    <td className="border border-gray-300 px-4 py-2 text-sm">{bill.patients?.full_name || 'N/A'}</td>
+                    <td className="border border-gray-300 px-4 py-2 text-sm">{bill.patients?.patient_id_code || 'N/A'}</td>
+                    <td className="border border-gray-300 px-4 py-2 text-sm">{bill.doctors?.name || 'N/A'}</td>
+                    <td className="border border-gray-300 px-4 py-2 text-sm">
+                      {bill.discharge_date ? new Date(bill.discharge_date).toLocaleDateString('en-IN') : 'N/A'}
+                    </td>
+                    <td className="border border-gray-300 px-4 py-2 text-sm text-right">₹{bill.total_amount?.toFixed(2) || '0.00'}</td>
+                    <td className="border border-gray-300 px-4 py-2 text-sm text-center">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        bill.status === 'finalized' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {bill.status === 'finalized' ? 'Finalized' : 'Draft'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="text-center py-8 text-gray-500">
+            <Calendar className="w-12 h-12 mx-auto mb-2 text-gray-400" />
+            <p>No discharge bills found for the selected date range</p>
+          </div>
+        )}
+      </div>
+
+      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Create New Discharge Bill</h2>
+
         <div className="mb-6">
           <label className="block text-sm font-medium text-gray-700 mb-2">Section</label>
           <div className="flex gap-4">
@@ -430,55 +548,39 @@ const formatAdmissionDateTime = (date?: string, time?: string) => {
                     </div>
                   ))}
                   <div className="border-t border-gray-300 pt-2 mt-2">
-                    {existingDischargeBill && (
-                      <>
-                        {existingDischargeBill.bill_no && (
-                          <div className="flex justify-between font-medium text-blue-600 mb-2">
-                            <span>Existing Bill No:</span>
-                            <span>{existingDischargeBill.bill_no}</span>
-                          </div>
-                        )}
-                        <div className="flex justify-between font-medium">
-                          <span>Total:</span>
-                          <span>₹{totals.totalAmount.toFixed(2)}</span>
-                        </div>
-                        <div className="flex justify-between text-blue-600">
-                          <span>Advance:</span>
-                          <span>₹{(totals as any).ipJoiningAmount?.toFixed(2) || '0.00'}</span>
-                        </div>
-                        <div className="flex justify-between text-orange-600 font-medium">
-                          <span>Amount Receivable:</span>
-                          <span>₹{(totals as any).amountReceivable?.toFixed(2) || '0.00'}</span>
-                        </div>
-                        <div className="flex justify-between text-green-600 font-medium">
-                          <span>Amount Received:</span>
-                          <span>₹{totals.paidAmount.toFixed(2)}</span>
-                        </div>
-                      </>
+                    {existingDischargeBill && existingDischargeBill.bill_no && (
+                      <div className="flex justify-between font-medium text-blue-600 mb-2">
+                        <span>Existing Bill No:</span>
+                        <span>{existingDischargeBill.bill_no}</span>
+                      </div>
                     )}
-                    {!existingDischargeBill && (
-                      <>
-                        <div className="flex justify-between font-medium">
-                          <span>Total Amount:</span>
-                          <span>₹{totals.totalAmount.toFixed(2)}</span>
-                        </div>
-                        <div className="flex justify-between text-green-600">
-                          <span>Paid Amount:</span>
-                          <span>₹{totals.paidAmount.toFixed(2)}</span>
-                        </div>
-                        {totals.outstanding > 0 && (
-                          <div className="flex justify-between text-red-600 font-medium">
-                            <span>Outstanding:</span>
-                            <span>₹{totals.outstanding.toFixed(2)}</span>
-                          </div>
-                        )}
-                        {totals.refundable && totals.refundable > 0 && (
-                          <div className="flex justify-between text-blue-600 font-medium">
-                            <span>Refundable:</span>
-                            <span>₹{totals.refundable.toFixed(2)}</span>
-                          </div>
-                        )}
-                      </>
+                    <div className="flex justify-between font-medium">
+                      <span>Total:</span>
+                      <span>₹{totals.totalAmount.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-blue-600">
+                      <span>Advance:</span>
+                      <span>₹{totals.ipJoiningAmount.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-orange-600 font-medium border-t border-gray-200 pt-2 mt-2">
+                      <span>Amount Receivable:</span>
+                      <span>₹{totals.amountReceivable.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-green-600 font-medium">
+                      <span>Amount Received:</span>
+                      <span>₹{totals.amountReceived.toFixed(2)}</span>
+                    </div>
+                    {totals.outstanding > 0 && (
+                      <div className="flex justify-between text-red-600 font-medium border-t border-gray-200 pt-2 mt-2">
+                        <span>Outstanding:</span>
+                        <span>₹{totals.outstanding.toFixed(2)}</span>
+                      </div>
+                    )}
+                    {totals.refundable > 0 && (
+                      <div className="flex justify-between text-orange-600 font-medium border-t border-gray-200 pt-2 mt-2">
+                        <span>Refundable:</span>
+                        <span>₹{totals.refundable.toFixed(2)}</span>
+                      </div>
                     )}
                   </div>
                 </div>

@@ -84,8 +84,10 @@ const Dashboard: React.FC = () => {
   const fetchDashboardStats = async () => {
     try {
       const today = getTodayIST();
-      
-      const { count: totalPatients } = await supabase.from('patients').select('*',{ count:'exact', head:true });
+
+      // Total Patients = All registrations (IP + OP) till date
+      const { count: totalPatients } = await supabase.from('registrations').select('*',{ count:'exact', head:true });
+
       const { data: doctors } = await supabase.from('doctors').select('id,name')
         .in('name',['Dr. G Sridhar','Dr. Himabindu Sridhar']);
 
@@ -111,8 +113,9 @@ const Dashboard: React.FC = () => {
       const { count: todayOP } = await supabase.from('registrations')
         .select('*',{count:'exact',head:true}).eq('registration_type','OP').eq('appointment_date',today);
 
-      const { count: totalIPTillDate } = await supabase.from('ip_admissions')
-        .select('*',{count:'exact',head:true});
+      // Total IP Patients = All IP registrations till date
+      const { count: totalIPTillDate } = await supabase.from('registrations')
+        .select('*',{count:'exact',head:true}).eq('registration_type','IP');
 
       const { count: todayIPAdmissions } = await supabase.from('ip_admissions')
         .select('*',{count:'exact',head:true}).eq('admission_date',today);

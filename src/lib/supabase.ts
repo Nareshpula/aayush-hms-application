@@ -1625,7 +1625,7 @@ export const DatabaseService = {
         payment_amount,
         patients(id, patient_id_code, full_name, age, gender, contact_number, blood_group),
         doctors(id, name, specialization),
-       ip_admissions(admission_date, admission_time, discharge_date, room_number, admission_type)
+       ip_admissions(admission_date, admission_time, discharge_date, room_number, admission_type, created_at, updated_at)
       `)
       .eq('patient_id', patientId)
       .eq('registration_type', 'IP')
