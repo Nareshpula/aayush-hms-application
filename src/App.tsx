@@ -19,6 +19,7 @@ import CancellationRefunds from './pages/CancellationRefunds';
 import DischargeBills from './pages/DischargeBills';
 import DischargeBillPreview from './components/DischargeBillPreview';
 import DischargePatients from './pages/DischargePatients';
+import RegistrationInvoicePreview from './components/RegistrationInvoicePreview';
 
 function App() {
   return (
@@ -36,6 +37,7 @@ function App() {
                     <Route path="/patients" element={<PatientList />} />
                     <Route path="/patient/:id" element={<PatientProfile />} />
                     <Route path="/registration" element={<Registration />} />
+                    <Route path="/registration-preview" element={<RegistrationInvoicePreview />} />
                     <Route path="/cancellation-refunds" element={<CancellationRefunds />} />
                     <Route path="/injections" element={<Injections />} />
                     <Route path="/vaccinations" element={<Vaccinations />} />

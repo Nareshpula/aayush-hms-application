@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Check, User, Clock, Building, Phone, Mail, MapPin, ArrowLeft, Activity } from 'lucide-react';
+import { Calendar, Check, User, Clock, Building, Phone, Mail, MapPin, ArrowLeft, Activity, FileText } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { DatabaseService, CompleteRegistrationData } from '../lib/supabase';
 import { getCurrentISTDate, istDateToUTCStart } from '../lib/dateUtils';
 
 const Registration: React.FC = () => {
+  const navigate = useNavigate();
   const [selectedDoctor, setSelectedDoctor] = useState<string>('');
   const [selectedDate, setSelectedDate] = useState<string>(getCurrentISTDate());
   const [registrationType, setRegistrationType] = useState<string>('');
@@ -280,6 +282,35 @@ const Registration: React.FC = () => {
     return registrationTypes.find(type => type.id === registrationType);
   };
 
+  const handlePreviewAndPrint = () => {
+    const doctor = getSelectedDoctor();
+    if (!doctor || !registrationResult) return;
+
+    const previewData = {
+      patient: {
+        patient_id: registrationResult.patient?.patient_id || 'AAYUSH-XXXXXX',
+        full_name: patientDetails.fullName,
+        age: parseInt(patientDetails.age),
+        gender: patientDetails.gender,
+        address: patientDetails.address,
+        contact_number: patientDetails.contactNumber
+      },
+      registration: {
+        registration_type: registrationType,
+        appointment_date: selectedDate,
+        appointment_time: registrationType === 'OP' ? patientDetails.appointmentTime : patientDetails.admissionTime,
+        consultation_type: patientDetails.consultationType,
+        ip_department: patientDetails.ipDepartment
+      },
+      doctor: {
+        name: doctor.name,
+        specialization: doctor.specialization
+      }
+    };
+
+    navigate('/registration-preview', { state: previewData });
+  };
+
   if (showConfirmation) {
     const doctor = getSelectedDoctor();
     const regType = getSelectedRegistrationType();
@@ -509,6 +540,13 @@ const Registration: React.FC = () => {
             >
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Form
+            </button>
+            <button
+              onClick={handlePreviewAndPrint}
+              className="inline-flex items-center px-6 py-3 rounded-lg font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200"
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              Preview & Print
             </button>
             <button
               onClick={() => {

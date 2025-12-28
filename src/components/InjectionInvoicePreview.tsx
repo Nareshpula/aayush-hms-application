@@ -285,12 +285,39 @@ const InjectionInvoicePreview: React.FC<InjectionInvoicePreviewProps> = ({ invoi
       {/* Print Styles */}
       <style>{`
         @media print {
+          @page {
+            size: A5 portrait;
+            margin: 0;
+          }
+
+          @page :first {
+            margin-top: 0;
+          }
+
+          @page :last {
+            margin-bottom: 0;
+          }
+
+          html {
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
+          }
+
+          body {
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
+          }
+
           body * {
             visibility: hidden;
           }
+
           .invoice-content, .invoice-content * {
             visibility: visible;
           }
+
           .invoice-content {
             position: absolute;
             left: 0;
@@ -299,16 +326,15 @@ const InjectionInvoicePreview: React.FC<InjectionInvoicePreviewProps> = ({ invoi
             padding: 10mm;
             transform: scale(1) !important;
           }
+
           .no-print {
             display: none !important;
           }
-          @page {
-            size: A5 portrait;
-            margin: 8mm;
-          }
+
           table {
             border-collapse: collapse !important;
           }
+
           td {
             border: 1px solid #6b7280 !important;
           }

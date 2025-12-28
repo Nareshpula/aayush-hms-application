@@ -184,7 +184,7 @@ export default function DischargeBillPreview() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-100 print:min-h-0 print:bg-white">
       <div className="print:hidden bg-white border-b border-gray-200 px-6 py-4 sticky top-0 z-10 shadow-sm">
         <div className="flex justify-between items-center max-w-7xl mx-auto">
           <button
@@ -237,8 +237,54 @@ export default function DischargeBillPreview() {
         <style>
           {`
             @media print {
-              @page { margin: 15mm; size: A4; }
-              body { margin: 0; }
+              @page {
+                margin: 0;
+                size: A4 portrait;
+              }
+
+              html {
+                margin: 0 !important;
+                padding: 0 !important;
+                background: white !important;
+              }
+
+              body {
+                margin: 12mm !important;
+                padding: 0 !important;
+                background: white !important;
+                min-height: 0 !important;
+                height: auto !important;
+              }
+
+              #root {
+                background: white !important;
+                min-height: 0 !important;
+                height: auto !important;
+              }
+
+              * {
+                page-break-after: auto !important;
+                page-break-before: auto !important;
+                page-break-inside: avoid !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+              }
+
+              nav, header, footer, aside,
+              button, .no-print, [class*="print:hidden"],
+              [class*="fixed"], [class*="sticky"],
+              .bg-green-50 {
+                display: none !important;
+              }
+
+              /* Hide browser-generated headers and footers */
+              @page :first {
+                margin-top: 0;
+              }
+
+              @page :last {
+                margin-bottom: 0;
+              }
             }
           `}
         </style>
