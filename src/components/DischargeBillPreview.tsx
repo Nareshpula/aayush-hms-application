@@ -299,7 +299,7 @@ export default function DischargeBillPreview() {
               />
             </div>
             <div className="flex-1 text-center">
-              <h1 className="text-2xl font-bold mb-1 tracking-wide" style={{ letterSpacing: '0.05em' }}>AAYUSH HOSPITAL</h1>
+              <h1 className="text-2xl font-bold mb-1 tracking-wide" style={{ letterSpacing: '0.05em', color: '#783B94' }}>AAYUSH HOSPITAL</h1>
               <p className="text-xs">#3-153-9, Opp. Joyalukkas, C.T.M. Road, Madanapalle Town, Madanapalle Dist. | Cell: 8179880809, 8822699996</p>
             </div>
             <div className="flex-shrink-0 w-16"></div>

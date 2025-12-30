@@ -249,6 +249,7 @@ export default function RegistrationInvoicePreview() {
           {/* Vitals Section */}
           <div className="text-xs text-right space-y-1 mb-6">
             <p>Wt: _____________</p>
+            <p>Hgt: _____________</p>
             <p>BP: _____________</p>
             <p>PR: _____________</p>
             <p>Temp: _____________</p>
