@@ -365,7 +365,7 @@ const PatientList: React.FC = () => {
                           <p className="text-sm text-gray-600">ID: {patient.patient_id_code}</p>
                         </div>
                         <div className="text-right">
-                          <p className="text-sm text-gray-600">Age: {patient.age} | {patient.gender}</p>
+                          <p className="text-sm text-gray-600">Age: {patient.age_text ? patient.age_text : patient.age !== null ? `${patient.age} Years` : ''} | {patient.gender}</p>
                           <p className="text-sm text-gray-600">{patient.contact_number}</p>
                         </div>
                       </div>
@@ -396,7 +396,7 @@ const PatientList: React.FC = () => {
                     </div>
                     <div>
                       <p className="text-sm text-gray-600">Age</p>
-                      <p className="text-lg font-medium text-gray-900">{selectedPatient.patient.age} years</p>
+                      <p className="text-lg font-medium text-gray-900">{selectedPatient.patient.age_text ? selectedPatient.patient.age_text : selectedPatient.patient.age !== null ? `${selectedPatient.patient.age} Years` : ''}</p>
                     </div>
                     <div>
                       <p className="text-sm text-gray-600">Gender</p>

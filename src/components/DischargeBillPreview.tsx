@@ -346,8 +346,8 @@ export default function DischargeBillPreview() {
             <tbody>
               <tr>
                 <td className="border border-black px-2 py-1">{billData.patient.full_name}</td>
-                <td className="border border-black px-2 py-1">{billData.patient.patient_id_code || 'N/A'}</td>
-                <td className="border border-black px-2 py-1">{billData.patient.age} years</td>
+                <td className="border border-black px-2 py-1">{billData.patient.patient_id_code}</td>
+                <td className="border border-black px-2 py-1">{billData.patient.age_text ? billData.patient.age_text : billData.patient.age !== null ? `${billData.patient.age} Years` : ''}</td>
                 <td className="border border-black px-2 py-1">{billData.patient.gender}</td>
                 <td className="border border-black px-2 py-1">{billData.patient.contact_number}</td>
               </tr>

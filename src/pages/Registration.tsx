@@ -154,7 +154,6 @@ const Registration: React.FC = () => {
   const isPatientDetailsValid = patientDetails.fullName &&
                                 patientDetails.contactNumber &&
                                 patientDetails.age &&
-                                patientDetails.bloodGroup &&
                                 patientDetails.gender &&
                                 patientDetails.address &&
                                 // Additional validation for IP patients
@@ -189,9 +188,12 @@ const Registration: React.FC = () => {
   };
 
   const handleAgeChange = (value: string) => {
-    // Only allow numeric input
-    const numericValue = value.replace(/[^0-9]/g, '');
-    handlePatientDetailChange('age', numericValue);
+    handlePatientDetailChange('age', value);
+  };
+
+  const extractAgeNumber = (ageText: string): number => {
+    const match = ageText.match(/\d+/);
+    return match ? parseInt(match[0]) : 0;
   };
 
   const handleRegisterPatient = async () => {
@@ -210,10 +212,11 @@ const Registration: React.FC = () => {
           // Patient data
           full_name: patientDetails.fullName,
           contact_number: patientDetails.contactNumber,
-          age: parseInt(patientDetails.age),
+          age: extractAgeNumber(patientDetails.age),
+          age_text: patientDetails.age,
           date_of_birth: patientDetails.dateOfBirth || undefined,
           email: patientDetails.email || undefined,
-          blood_group: patientDetails.bloodGroup,
+          blood_group: patientDetails.bloodGroup || undefined,
           gender: patientDetails.gender as 'Male' | 'Female' | 'Other',
           address: patientDetails.address,
           initial_vital_signs: {
@@ -288,9 +291,10 @@ const Registration: React.FC = () => {
 
     const previewData = {
       patient: {
-        patient_id: registrationResult.patient?.patient_id || 'AAYUSH-XXXXXX',
+        patient_id: registrationResult?.patient_id_code,
         full_name: patientDetails.fullName,
-        age: parseInt(patientDetails.age),
+        age: patientDetails.age,
+        age_text: patientDetails.age,
         gender: patientDetails.gender,
         address: patientDetails.address,
         contact_number: patientDetails.contactNumber
@@ -314,9 +318,9 @@ const Registration: React.FC = () => {
   if (showConfirmation) {
     const doctor = getSelectedDoctor();
     const regType = getSelectedRegistrationType();
-    
+
     // Get patient ID from registration result
-    const patientId = registrationResult?.patient?.patient_id || 'AAYUSH-XXXXXX';
+    const patientId = registrationResult?.patient_id_code;
     
     return (
       <div className="py-6">
@@ -400,7 +404,7 @@ const Registration: React.FC = () => {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm font-medium text-gray-500">Age:</span>
-                    <span className="text-sm text-gray-900">{patientDetails.age} years</span>
+                    <span className="text-sm text-gray-900">{patientDetails.age}</span>
                   </div>
                   {patientDetails.dateOfBirth && (
                     <div className="flex justify-between">
@@ -803,14 +807,12 @@ const Registration: React.FC = () => {
                     Age *
                   </label>
                   <input
-                    type="number"
+                    type="text"
                     id="age"
                     value={patientDetails.age}
                     onChange={(e) => handleAgeChange(e.target.value)}
                     className="form-input"
-                    placeholder="25"
-                    min="0"
-                    max="150"
+                    placeholder="e.g. 5 Years, 10 Months, 3 Weeks"
                     required
                   />
                 </div>
@@ -851,14 +853,13 @@ const Registration: React.FC = () => {
                 {/* Blood Group */}
                 <div>
                   <label htmlFor="bloodGroup" className="block text-xs font-medium text-gray-700 mb-1">
-                    Blood Group *
+                    Blood Group
                   </label>
                   <select
                     id="bloodGroup"
                     value={patientDetails.bloodGroup}
                     onChange={(e) => handlePatientDetailChange('bloodGroup', e.target.value)}
                     className="form-input"
-                    required
                   >
                     <option value="">Select Blood Group</option>
                     {bloodGroupOptions.map((group) => (

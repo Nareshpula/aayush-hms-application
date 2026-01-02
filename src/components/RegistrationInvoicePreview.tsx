@@ -5,7 +5,7 @@ interface RegistrationPreviewData {
   patient: {
     patient_id: string;
     full_name: string;
-    age: number;
+    age: string | number;
     gender: string;
     address: string;
     contact_number: string;
@@ -212,7 +212,7 @@ export default function RegistrationInvoicePreview() {
                 </div>
                 <div className="flex">
                   <span className="font-semibold w-32">Age / Gender:</span>
-                  <span>{previewData.patient.age} years / {previewData.patient.gender}</span>
+                  <span>{previewData.patient.age_text ? previewData.patient.age_text : previewData.patient.age !== null ? `${previewData.patient.age} Years` : ''} / {previewData.patient.gender}</span>
                 </div>
                 <div className="flex">
                   <span className="font-semibold w-32">Address:</span>

@@ -29,6 +29,19 @@ interface RegistrationRecord {
   };
 }
 
+interface RefundRecord {
+  id: string;
+  invoice_no: string | null;
+  registration_id: string;
+  patient_id: string;
+  paid_amount: number;
+  refund_amount: number;
+  refund_method: string;
+  reason: string;
+  refunded_at: string;
+  refunded_by: string;
+}
+
 const CancellationRefunds: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<RegistrationRecord[]>([]);
@@ -42,6 +55,11 @@ const CancellationRefunds: React.FC = () => {
   const [refundedBy, setRefundedBy] = useState('Admin');
   const [processing, setProcessing] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+  const [refundRecords, setRefundRecords] = useState<RefundRecord[]>([]);
+  const [dateSearchLoading, setDateSearchLoading] = useState(false);
 
   const handleSearch = async () => {
     if (!searchTerm.trim()) {
@@ -119,6 +137,32 @@ const CancellationRefunds: React.FC = () => {
     }
   };
 
+  const handleDateSearch = async () => {
+    if (!fromDate || !toDate) {
+      alert('Please select both From Date and To Date');
+      return;
+    }
+
+    if (new Date(fromDate) > new Date(toDate)) {
+      alert('From Date cannot be after To Date');
+      return;
+    }
+
+    setDateSearchLoading(true);
+    try {
+      const results = await DatabaseService.getRefundsByDateRange(fromDate, toDate);
+      setRefundRecords(results || []);
+      if (results && results.length === 0) {
+        alert('No refund records found for the selected date range');
+      }
+    } catch (error) {
+      console.error('Error searching refunds by date:', error);
+      alert('Failed to search refund records');
+    } finally {
+      setDateSearchLoading(false);
+    }
+  };
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
@@ -142,6 +186,7 @@ const CancellationRefunds: React.FC = () => {
       )}
 
       <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Search by Patient Information</h2>
         <div className="flex gap-4">
           <div className="flex-1">
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -163,6 +208,45 @@ const CancellationRefunds: React.FC = () => {
           >
             <Search size={18} />
             {loading ? 'Searching...' : 'Search'}
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg shadow-sm p-6 mb-6 border-2 border-green-200">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <Calendar size={20} className="text-green-600" />
+          Date-Wise Refund Search
+        </h2>
+        <div className="flex gap-4">
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              From Date
+            </label>
+            <input
+              type="date"
+              value={fromDate}
+              onChange={(e) => setFromDate(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+            />
+          </div>
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              To Date
+            </label>
+            <input
+              type="date"
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+            />
+          </div>
+          <button
+            onClick={handleDateSearch}
+            disabled={dateSearchLoading}
+            className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 flex items-center gap-2 mt-7"
+          >
+            <Search size={18} />
+            {dateSearchLoading ? 'Searching...' : 'Search Refunds'}
           </button>
         </div>
       </div>
@@ -288,6 +372,99 @@ const CancellationRefunds: React.FC = () => {
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {refundRecords.length > 0 && (
+        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <DollarSign size={20} className="text-green-600" />
+            Refund Records ({refundRecords.length})
+          </h2>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="bg-gray-100 border-b-2 border-gray-300">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    Invoice No
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    Registration ID
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    Paid Amount
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    Refund Amount
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    Refund Method
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    Reason
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    Refunded At
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    Refunded By
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {refundRecords.map((record) => (
+                  <tr key={record.id} className="border-b border-gray-200 hover:bg-gray-50">
+                    <td className="px-4 py-3 text-sm text-gray-900">
+                      {record.invoice_no || 'N/A'}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-900 font-mono">
+                      {record.registration_id.substring(0, 8)}...
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-900 text-right font-medium">
+                      {formatCurrency(record.paid_amount)}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-red-600 text-right font-bold">
+                      {formatCurrency(record.refund_amount)}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-900">
+                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium">
+                        <CreditCard size={14} />
+                        {record.refund_method}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-700">
+                      {record.reason}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-900">
+                      {formatDateTimeIST(record.refunded_at)}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-900">
+                      <span className="inline-flex items-center gap-1">
+                        <User size={14} className="text-gray-500" />
+                        {record.refunded_by}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="bg-gray-100 border-t-2 border-gray-300 font-bold">
+                  <td colSpan={2} className="px-4 py-3 text-sm text-gray-900">
+                    Total
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-900 text-right">
+                    {formatCurrency(refundRecords.reduce((sum, r) => sum + r.paid_amount, 0))}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-red-600 text-right">
+                    {formatCurrency(refundRecords.reduce((sum, r) => sum + r.refund_amount, 0))}
+                  </td>
+                  <td colSpan={4} className="px-4 py-3 text-sm text-gray-500">
+                    {refundRecords.length} record{refundRecords.length !== 1 ? 's' : ''}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
         </div>
       )}
 

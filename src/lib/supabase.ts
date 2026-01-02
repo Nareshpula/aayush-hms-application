@@ -72,6 +72,7 @@ export interface Patient {
   full_name: string;
   contact_number: string;
   age: number;
+  age_text?: string;
   date_of_birth?: string;
   email?: string;
   blood_group: string;
@@ -213,6 +214,7 @@ export interface CompleteRegistrationData {
   full_name: string;
   contact_number: string;
   age: number;
+  age_text?: string;
   date_of_birth?: string;
   email?: string;
   blood_group: string;
@@ -441,47 +443,51 @@ export const DatabaseService = {
 
   // Complete registration operation
   async createCompleteRegistration(registrationData: CompleteRegistrationData): Promise<any> {
-    const { data, error } = await supabase.rpc('create_complete_registration', {
-      // Required patient data (first)
-      p_full_name: registrationData.full_name,
-      p_contact_number: registrationData.contact_number,
-      p_age: registrationData.age,
-      p_blood_group: registrationData.blood_group,
-      p_gender: registrationData.gender,
-      p_address: registrationData.address,
-      
-      // Required registration data
-      p_doctor_id: registrationData.doctor_id,
-      p_registration_type: registrationData.registration_type,
-      p_appointment_date: registrationData.appointment_date,
-      
+    // Build payload object for new JSON-based database function
+    const payload = {
+      // Required patient data
+      full_name: registrationData.full_name,
+      contact_number: registrationData.contact_number,
+      age: registrationData.age,
+      age_text: registrationData.age_text || null,
+      blood_group: registrationData.blood_group || null,
+      gender: registrationData.gender,
+      address: registrationData.address,
+
       // Optional patient data
-      p_date_of_birth: registrationData.date_of_birth || null,
-      p_email: registrationData.email || null,
-      p_initial_vital_signs: registrationData.initial_vital_signs || {},
-      p_allergies: registrationData.allergies || [],
-      p_emergency_contact: registrationData.emergency_contact || {},
-      
-      // IP-specific data
-      p_guardian_name: registrationData.guardian_name || null,
-      p_guardian_relationship: registrationData.guardian_relationship || null,
-      p_admission_date: registrationData.admission_date || null,
-      p_admission_time: registrationData.admission_time || null,
-      p_admission_type: registrationData.admission_type || null,
-      p_ip_department: registrationData.ip_department || null,
-      p_room_number: registrationData.room_number || null,
-      
-      // OP-specific data
-      p_appointment_time: registrationData.appointment_time || null,
-      p_consultation_type: registrationData.consultation_type || null,
-      p_symptoms: registrationData.symptoms || null,
-      p_referred_by: registrationData.referred_by || null,
+      date_of_birth: registrationData.date_of_birth || null,
+      email: registrationData.email || null,
+      initial_vital_signs: registrationData.initial_vital_signs || {},
+      allergies: registrationData.allergies || [],
+      emergency_contact: registrationData.emergency_contact || {},
+
+      // Required registration data
+      doctor_id: registrationData.doctor_id,
+      registration_type: registrationData.registration_type,
+      appointment_date: registrationData.appointment_date,
 
       // Payment data
-      p_payment_method: registrationData.payment_method || null,
-      p_payment_amount: registrationData.payment_amount || null
-    });
-    
+      payment_method: registrationData.payment_method || null,
+      payment_amount: registrationData.payment_amount || null,
+
+      // IP-specific data
+      guardian_name: registrationData.guardian_name || null,
+      guardian_relationship: registrationData.guardian_relationship || null,
+      admission_date: registrationData.admission_date || null,
+      admission_time: registrationData.admission_time || null,
+      admission_type: registrationData.admission_type || null,
+      ip_department: registrationData.ip_department || null,
+      room_number: registrationData.room_number || null,
+
+      // OP-specific data
+      appointment_time: registrationData.appointment_time || null,
+      consultation_type: registrationData.consultation_type || null,
+      symptoms: registrationData.symptoms || null,
+      referred_by: registrationData.referred_by || null
+    };
+
+    const { data, error } = await supabase.rpc('create_complete_registration', { payload });
+
     if (error) throw error;
     return data;
   },

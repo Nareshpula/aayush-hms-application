@@ -433,7 +433,7 @@ const formatAdmissionDateTime = (date?: string, time?: string) => {
                 >
                   <div className="font-medium">{patient.full_name}</div>
                   <div className="text-sm text-gray-600">
-                    {patient.patient_id_code} | {patient.contact_number} | Age: {patient.age}
+                    {patient.patient_id_code} | {patient.contact_number} | Age: {patient.age_text ? patient.age_text : patient.age !== null ? `${patient.age} Years` : ''}
                   </div>
                 </button>
               ))}

@@ -324,7 +324,7 @@ const NewbornVaccinations: React.FC = () => {
                 </div>
                 <div>
                   <p className="text-xs text-blue-600 mb-1">Age</p>
-                  <p className="text-sm font-medium text-blue-900">{patient.age} years</p>
+                  <p className="text-sm font-medium text-blue-900">{patient.age_text ? patient.age_text : patient.age !== null ? `${patient.age} Years` : ''}</p>
                 </div>
                 <div>
                   <p className="text-xs text-blue-600 mb-1">Gender</p>

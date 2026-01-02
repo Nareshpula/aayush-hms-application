@@ -109,7 +109,7 @@ const PatientProfile: React.FC = () => {
                     alt={patient.name}
                   />
                   <h2 className="mt-4 text-xl font-bold text-gray-900">{patient.name}</h2>
-                  <p className="text-sm text-gray-500">{patient.gender}, {patient.age} years old</p>
+                  <p className="text-sm text-gray-500">{patient.gender}, {patient.age_text ? patient.age_text : patient.age !== null ? `${patient.age} Years` : ''}</p>
                   <span className="inline-flex px-2 py-1 mt-2 text-xs font-semibold rounded-full bg-green-100 text-green-800">
                     {patient.status}
                   </span>
