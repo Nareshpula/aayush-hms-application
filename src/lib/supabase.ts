@@ -1321,56 +1321,53 @@ export const DatabaseService = {
     console.log('📅 endDate:', endDate);
     console.log('👨‍⚕️ doctorId:', doctorId);
 
-    const { data: allRefunds, error } = await supabase
+    // Use !inner join when doctor filter is applied to enforce relationship
+    const selectClause = doctorId
+      ? 'refund_amount, registration_id, refunded_at, registrations!inner(doctor_id)'
+      : 'refund_amount, registration_id, refunded_at, registrations(doctor_id)';
+
+    let query = supabase
       .from('registration_refunds')
-      .select('refund_amount, registration_id, refunded_at, registrations(doctor_id)')
-      .order('refunded_at', { ascending: false });
+      .select(selectClause);
+
+    // Apply UTC timestamp-range filtering (like getRefundsByDateRange)
+    if (startDate && endDate) {
+      const startDateTime = istDateToUTCStart(startDate);
+
+      // Calculate exclusive end boundary (start of next day)
+      const nextDay = new Date(endDate);
+      nextDay.setDate(nextDay.getDate() + 1);
+      const nextDayStr = nextDay.toISOString().split('T')[0];
+      const endDateTime = istDateToUTCStart(nextDayStr);
+
+      console.log('🔍 UTC Timestamp Range:', startDateTime, 'to', endDateTime, '(exclusive)');
+
+      query = query
+        .gte('refunded_at', startDateTime)
+        .lt('refunded_at', endDateTime);
+    }
+
+    // Apply doctor filter at database level with inner join enforcement
+    if (doctorId) {
+      query = query.eq('registrations.doctor_id', doctorId);
+      console.log('🩺 Doctor filter applied with inner join:', doctorId);
+    }
+
+    const { data: refunds, error } = await query.order('refunded_at', { ascending: false });
 
     if (error) {
       console.error('❌ Refunds query error:', error);
       return 0;
     }
 
-    console.log('✅ Total refunds in database:', allRefunds?.length || 0);
+    console.log('✅ Filtered refunds:', refunds?.length || 0);
 
-    if (!allRefunds || allRefunds.length === 0) {
-      console.log('⚠️ No refunds found in database');
+    if (!refunds || refunds.length === 0) {
+      console.log('⚠️ No refunds found');
       return 0;
     }
 
-    console.log('Sample refund record:', allRefunds[0]);
-
-    let filteredRefunds = [...allRefunds];
-    const initialCount = filteredRefunds.length;
-
-    if (startDate && endDate) {
-      console.log('🔍 Applying date filter: ' + startDate + ' to ' + endDate);
-
-      filteredRefunds = filteredRefunds.filter((record: any) => {
-        if (!record.refunded_at) return false;
-
-        const refundDate = record.refunded_at.split('T')[0];
-        const isInRange = refundDate >= startDate && refundDate <= endDate;
-
-        return isInRange;
-      });
-
-      console.log(`📊 Date filter: ${initialCount} → ${filteredRefunds.length} refunds`);
-    } else {
-      console.log('⚠️ No date filter applied (dates missing)');
-    }
-
-    if (doctorId) {
-      const beforeDoctorFilter = filteredRefunds.length;
-
-      filteredRefunds = filteredRefunds.filter((record: any) => {
-        return record.registrations?.doctor_id === doctorId;
-      });
-
-      console.log(`👨‍⚕️ Doctor filter: ${beforeDoctorFilter} → ${filteredRefunds.length} refunds`);
-    }
-
-    const total = filteredRefunds.reduce((sum, record) => sum + (Number(record.refund_amount) || 0), 0);
+    const total = refunds.reduce((sum, record) => sum + (Number(record.refund_amount) || 0), 0);
 
     console.log('━━━━━━━━━━━━━━━━━━━━━━');
     console.log('💰 TOTAL REFUNDS: ₹' + total);
