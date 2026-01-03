@@ -950,7 +950,17 @@ export const DatabaseService = {
     const queryEndDate = endDate || new Date().toISOString().split('T')[0];
 
     const startDateTime = startDate ? istDateToUTCStart(startDate) : new Date(0).toISOString();
-    const endDateTime = endDate ? istDateToUTCEnd(endDate) : new Date().toISOString();
+
+    // Calculate exclusive end boundary (start of next day) for services
+    let endDateTimeExclusive: string;
+    if (endDate) {
+      const nextDay = new Date(endDate);
+      nextDay.setDate(nextDay.getDate() + 1);
+      const nextDayStr = nextDay.toISOString().split('T')[0];
+      endDateTimeExclusive = istDateToUTCStart(nextDayStr);
+    } else {
+      endDateTimeExclusive = new Date().toISOString();
+    }
 
     console.log('=== Billing Data Query ===');
     console.log('Start Date (IST):', startDate);
@@ -959,7 +969,7 @@ export const DatabaseService = {
     console.log('Query Start Date:', queryStartDate);
     console.log('Query End Date:', queryEndDate);
     console.log('Start DateTime (UTC):', startDateTime);
-    console.log('End DateTime (UTC):', endDateTime);
+    console.log('End DateTime Exclusive (UTC):', endDateTimeExclusive);
 
     // Build queries with doctor filter at database level for better performance
     let registrationsQuery = supabase
@@ -968,29 +978,31 @@ export const DatabaseService = {
       .gte('appointment_date', queryStartDate)
       .lte('appointment_date', queryEndDate);
 
+    console.log('UTC Timestamp Range for Services - Start:', startDateTime, 'End (exclusive):', endDateTimeExclusive);
+
     let injectionsQuery = supabase
       .from('injections')
       .select('id, patient_id, doctor_id, admission_type, payment_method, payment_amount, date, patients(id, patient_id_code, full_name), doctors(id, name)')
-      .gte('date', startDateTime)
-      .lte('date', endDateTime);
+      .gte('created_at', startDateTime)
+      .lt('created_at', endDateTimeExclusive);
 
     let vaccinationsQuery = supabase
       .from('vaccinations')
       .select('id, patient_id, doctor_id, admission_type, payment_method, payment_amount, date, invoice_no, patients(id, patient_id_code, full_name), doctors(id, name)')
-      .gte('date', startDateTime)
-      .lte('date', endDateTime);
+      .gte('created_at', startDateTime)
+      .lt('created_at', endDateTimeExclusive);
 
     let newbornVaccinationsQuery = supabase
       .from('newborn_vaccinations')
       .select('id, patient_id, doctor_id, admission_type, payment_method, payment_amount, date, invoice_no, patients(id, patient_id_code, full_name), doctors(id, name)')
-      .gte('date', startDateTime)
-      .lte('date', endDateTime);
+      .gte('created_at', startDateTime)
+      .lt('created_at', endDateTimeExclusive);
 
     let dermatologyProceduresQuery = supabase
       .from('dermatology_procedures')
       .select('id, patient_id, doctor_id, admission_type, payment_method, payment_amount, date, invoice_no, patients(id, patient_id_code, full_name), doctors(id, name)')
-      .gte('date', startDateTime)
-      .lte('date', endDateTime);
+      .gte('created_at', startDateTime)
+      .lt('created_at', endDateTimeExclusive);
 
     // Apply doctor filter at database level if specified
     if (doctorId) {
@@ -1009,18 +1021,19 @@ export const DatabaseService = {
       dermatologyProceduresQuery
     ]);
 
-    // Get raw data
+    // Get filtered data (already filtered by UTC timestamp range at database level)
     const registrations = registrationsResult.data || [];
     const injections = injectionsResult.data || [];
     const vaccinations = vaccinationsResult.data || [];
     const newbornVaccinations = newbornVaccinationsResult.data || [];
     const dermatologyProcedures = dermatologyProceduresResult.data || [];
 
-    console.log('Registrations found:', registrations.length);
-    console.log('Injections found:', injections.length);
-    console.log('Vaccinations found:', vaccinations.length);
-    console.log('Newborn Vaccinations found:', newbornVaccinations.length);
-    console.log('Dermatology Procedures found:', dermatologyProcedures.length);
+    console.log('✅ Query Results (filtered by UTC timestamp):');
+    console.log('   Registrations:', registrations.length);
+    console.log('   Injections:', injections.length);
+    console.log('   Vaccinations:', vaccinations.length);
+    console.log('   Newborn Vaccinations:', newbornVaccinations.length);
+    console.log('   Dermatology Procedures:', dermatologyProcedures.length);
 
     if (doctorId) {
       console.log('Filtered for doctor:', doctorId);
@@ -1276,7 +1289,12 @@ export const DatabaseService = {
 
   async getRefundsByDateRange(startDate: string, endDate: string) {
     const startDateTime = istDateToUTCStart(startDate);
-    const endDateTime = istDateToUTCEnd(endDate);
+
+    // Calculate next day for exclusive end boundary (industry standard)
+    const nextDay = new Date(endDate);
+    nextDay.setDate(nextDay.getDate() + 1);
+    const nextDayStr = nextDay.toISOString().split('T')[0];
+    const endDateTime = istDateToUTCStart(nextDayStr);
 
     const { data, error } = await supabase
       .from('registration_refunds')
@@ -1286,7 +1304,7 @@ export const DatabaseService = {
         registrations(registration_type, appointment_date)
       `)
       .gte('refunded_at', startDateTime)
-      .lte('refunded_at', endDateTime)
+      .lt('refunded_at', endDateTime)
       .order('refunded_at', { ascending: false });
 
     if (error) {

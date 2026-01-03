@@ -40,6 +40,15 @@ interface RefundRecord {
   reason: string;
   refunded_at: string;
   refunded_by: string;
+  patients: {
+    patient_id_code: string;
+    full_name: string;
+    contact_number: string;
+  };
+  registrations: {
+    registration_type: string;
+    appointment_date: string;
+  };
 }
 
 const CancellationRefunds: React.FC = () => {
@@ -389,7 +398,7 @@ const CancellationRefunds: React.FC = () => {
                     Invoice No
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                    Registration ID
+                    Patient ID
                   </th>
                   <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Paid Amount
@@ -417,8 +426,8 @@ const CancellationRefunds: React.FC = () => {
                     <td className="px-4 py-3 text-sm text-gray-900">
                       {record.invoice_no || 'N/A'}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-900 font-mono">
-                      {record.registration_id.substring(0, 8)}...
+                    <td className="px-4 py-3 text-sm text-gray-900 font-medium">
+                      {record.patients.patient_id_code}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-900 text-right font-medium">
                       {formatCurrency(record.paid_amount)}

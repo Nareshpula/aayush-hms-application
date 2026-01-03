@@ -11,8 +11,10 @@ const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
  */
 export function istDateToUTCStart(istDateString: string): string {
   const [year, month, day] = istDateString.split('-').map(Number);
-  const istDate = new Date(year, month - 1, day, 0, 0, 0, 0);
-  const utcTimestamp = istDate.getTime() - IST_OFFSET_MS;
+  // Use Date.UTC to create date in UTC timezone first (avoids browser timezone issues)
+  const utcDate = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+  // Now subtract IST offset to get UTC time for IST midnight
+  const utcTimestamp = utcDate.getTime() - IST_OFFSET_MS;
   return new Date(utcTimestamp).toISOString();
 }
 
@@ -23,8 +25,10 @@ export function istDateToUTCStart(istDateString: string): string {
  */
 export function istDateToUTCEnd(istDateString: string): string {
   const [year, month, day] = istDateString.split('-').map(Number);
-  const istDate = new Date(year, month - 1, day, 23, 59, 59, 999);
-  const utcTimestamp = istDate.getTime() - IST_OFFSET_MS;
+  // Use Date.UTC to create date in UTC timezone first (avoids browser timezone issues)
+  const utcDate = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999));
+  // Now subtract IST offset to get UTC time for IST end of day
+  const utcTimestamp = utcDate.getTime() - IST_OFFSET_MS;
   return new Date(utcTimestamp).toISOString();
 }
 
@@ -73,9 +77,11 @@ export function utcToISTDateTime(utcISOString: string): string {
  */
 export function getCurrentISTDate(): string {
   const now = new Date();
+  // Add IST offset to get IST time
   const istTimestamp = now.getTime() + IST_OFFSET_MS;
   const istDate = new Date(istTimestamp);
 
+  // Use UTC methods to extract date parts (since we already added IST offset)
   const year = istDate.getUTCFullYear();
   const month = String(istDate.getUTCMonth() + 1).padStart(2, '0');
   const day = String(istDate.getUTCDate()).padStart(2, '0');
